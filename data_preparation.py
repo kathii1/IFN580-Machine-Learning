@@ -1,8 +1,20 @@
 import pandas as pd
 import numpy as np
 
+
 def data_prep():
-    df = pd.read_csv('kick.csv')
+    '''
+    Load and clean the kick.csv dataset.
+
+    - Drops irrelevant and redundant columns.
+    - Extracts month/year from PurchaseDate and fixes column typos.
+    - Replaces placeholders ('?', 'NOT AVAIL') and invalid IsOnlineSale codes with NaN.
+    - Converts VehYear to integer, imputes missing values
+      (mode for categoricals, mean for numericals).
+    - Returns cleaned DataFrame with lists of numerical and categorical columns.
+    '''
+
+    df = pd.read_csv('kick.csv', low_memory=False)
 
     # Drop irrelevant columns
     df.drop(['PurchaseID', 'PurchaseTimestamp', 'WheelTypeID', 'TopThreeAmericanName', 'Nationality', 'ForSale',
@@ -19,6 +31,15 @@ def data_prep():
     # In any column replace ? with NaN
     df.replace('?', np.nan, inplace=True)
 
+    # Replace invalid numbers with NaN in IsOnlineSale
+    df['IsOnlineSale'] = df['IsOnlineSale'].replace(['-1', '2', '4'], np.nan)
+
+    # Replace NOT AVAIL with NaN in Color
+    df['Color'] = df['Color'].replace('NOT AVAIL', np.nan)
+
+    # Convert VehYear from float to int
+    df['VehYear'] = df['VehYear'].astype('Int64')
+
     categorical_columns = ['PurchaseMonth', 'PurchaseYear', 'Auction', 'VehYear', 'Make', 'Color', 'Transmission',
                            'WheelType', 'Size', 'PRIMEUNIT', 'AUCGUART', 'VNST', 'IsOnlineSale']
     # For categorical columns: replace Nan with the mode of the column
@@ -26,7 +47,6 @@ def data_prep():
         df[col] = df[col].fillna(df[col].mode()[0])
         df[col] = df[col].astype('category')
 
-    # %%
     numerical_columns = ['VehOdo', 'MMRAcquisitionAuctionAveragePrice', 'MMRAcquisitionAuctionCleanPrice',
                          'MMRAcquisitionRetailAveragePrice', 'MMRAcquisitionRetailCleanPrice',
                          'MMRCurrentAuctionAveragePrice', 'MMRCurrentAuctionCleanPrice', 'MMRCurrentRetailAveragePrice',
@@ -38,16 +58,4 @@ def data_prep():
         df[col] = df[col].fillna(df[col].mean())
         df[col] = df[col].astype('float64')
 
-    # Delete outliers in numerical columns using IQR method
-    '''
-    for col in numerical_columns:
-        Q1 = df[col].quantile(0.25)
-        Q3 = df[col].quantile(0.75)
-        IQR = Q3 - Q1
-        lower_bound = Q1 - 1.5 * IQR
-        upper_bound = Q3 + 1.5 * IQR
-        df = df[(df[col] >= lower_bound) & (df[col] <= upper_bound)]
-    '''
-    # one-hot encoding
-    df = pd.get_dummies(df)
-    return df
+    return df, numerical_columns, categorical_columns
